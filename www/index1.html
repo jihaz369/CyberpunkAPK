@@ -1,11 +1,3 @@
-APK $ ls
-README.md              node_modules       www
-android                package-lock.json
-capacitor.config.json  package.json
-~/.../test/CyberpunkAPK $ cd www
-~/.../CyberpunkAPK/www $ ls
-index.html  script.js  style.css
-~/.../CyberpunkAPK/www $ cat index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -196,7 +188,7 @@ header .subtitle {
 }
 
 .panel-title::before {
-  content: 'â—†';
+  content: '◆';
   color: var(--cyan);
   font-size: 0.6rem;
 }
@@ -623,7 +615,7 @@ footer {
 
 <div class="app-container">
   <header>
-    <h1>â—ˆ HOLO RADIO â—ˆ</h1>
+    <h1>◈ HOLO RADIO ◈</h1>
     <div class="subtitle">DIGITAL MODEM SYSTEM // OFFLINE CAPABLE</div>
   </header>
 
@@ -699,7 +691,7 @@ footer {
           <div class="display-box" id="tx-key-status" style="min-height:36px;display:flex;align-items:center;color:var(--cyan-dim);">No key loaded</div>
         </div>
         <div class="form-group" style="display:flex;align-items:flex-end;">
-          <button class="btn primary" onclick="downloadEncrypted()" id="btn-download-enc" disabled>â¬‡ DOWNLOAD ENCRYPTED (.ENC)</button>
+          <button class="btn primary" onclick="downloadEncrypted()" id="btn-download-enc" disabled>⬇ DOWNLOAD ENCRYPTED (.ENC)</button>
         </div>
       </div>
     </div>
@@ -770,8 +762,8 @@ footer {
         </div>
       </div>
       <div class="btn-row" style="margin-top:15px">
-        <button class="btn primary" onclick="transmit()">â–¶ TRANSMIT AUDIO</button>
-        <button class="btn primary" onclick="generateWAV()">â¬‡ GENERATE WAV</button>
+        <button class="btn primary" onclick="transmit()">▶ TRANSMIT AUDIO</button>
+        <button class="btn primary" onclick="generateWAV()">⬇ GENERATE WAV</button>
         <button class="btn" onclick="showConstellation()">CONSTELLATION</button>
       </div>
     </div>
@@ -811,12 +803,12 @@ footer {
       <div class="panel">
         <div class="panel-title">Signal Input</div>
         <div class="btn-row">
-          <button class="btn primary" id="rx-mic-btn" onclick="toggleMic()">ðŸŽ¤ START MIC</button>
-          <button class="btn" onclick="loadWAV()">ðŸ“ LOAD WAV</button>
-          <button class="btn primary" onclick="decodeRx()">ðŸ”“ DECODE</button>
-          <button class="btn" onclick="downloadRxWAV()">â¬‡ DOWNLOAD WAV</button>
-          <button class="btn" onclick="copyRxBinary()">ðŸ“‹ COPY BINARY</button>
-          <button class="btn danger" onclick="stopRx()">â¹ STOP</button>
+          <button class="btn primary" id="rx-mic-btn" onclick="toggleMic()">🎤 START MIC</button>
+          <button class="btn" onclick="loadWAV()">📁 LOAD WAV</button>
+          <button class="btn primary" onclick="decodeRx()">🔓 DECODE</button>
+          <button class="btn" onclick="downloadRxWAV()">⬇ DOWNLOAD WAV</button>
+          <button class="btn" onclick="copyRxBinary()">📋 COPY BINARY</button>
+          <button class="btn danger" onclick="stopRx()">⏹ STOP</button>
         </div>
         <input type="file" id="wav-file" accept=".wav,.audio" style="display:none" onchange="handleWAV(event)">
         <div style="margin-top:12px">
@@ -866,11 +858,11 @@ footer {
           <div class="display-box" id="rx-decrypt-status" style="min-height:36px;display:flex;align-items:center;color:var(--cyan-dim);">No decryption active</div>
         </div>
         <div class="form-group" style="display:flex;align-items:flex-end;">
-          <button class="btn primary" onclick="attemptDecrypt()" id="btn-decrypt-now" disabled>ðŸ”“ DECRYPT BUFFER</button>
+          <button class="btn primary" onclick="attemptDecrypt()" id="btn-decrypt-now" disabled>🔓 DECRYPT BUFFER</button>
         </div>
       </div>
       <div class="btn-row" style="margin-top:10px;">
-        <button class="btn" onclick="document.getElementById('enc-file').click()">ðŸ“ LOAD ENC FILE</button>
+        <button class="btn" onclick="document.getElementById('enc-file').click()">📁 LOAD ENC FILE</button>
         <input type="file" id="enc-file" accept=".enc,.bin" style="display:none" onchange="handleEncFile(event)">
         <span id="rx-enc-info" style="font-size:0.75rem;color:var(--cyan-dim);align-self:center;margin-left:auto;">No encrypted file loaded</span>
       </div>
@@ -1051,11 +1043,11 @@ function toggleEncryption() {
   const lbl = document.getElementById('tx-encrypt-label');
   const btn = document.getElementById('btn-download-enc');
   const stat = document.getElementById('tx-key-status');
-
+  
   isEncrypting = chk.checked;
   inp.disabled = !isEncrypting;
   btn.disabled = !isEncrypting;
-
+  
   if (isEncrypting) {
     lbl.textContent = 'ENCRYPTION ON';
     lbl.style.color = 'var(--green)';
@@ -1078,11 +1070,11 @@ function toggleRxEncryption() {
   const lbl = document.getElementById('rx-encrypt-label');
   const btn = document.getElementById('btn-decrypt-now');
   const stat = document.getElementById('rx-decrypt-status');
-
+  
   isDecrypting = chk.checked;
   inp.disabled = !isDecrypting;
   btn.disabled = !isDecrypting;
-
+  
   if (isDecrypting) {
     lbl.textContent = 'DECRYPTION ON';
     lbl.style.color = 'var(--green)';
@@ -1152,7 +1144,7 @@ async function downloadEncrypted() {
     a.download = 'holomessage.enc';
     a.click();
     URL.revokeObjectURL(url);
-    document.getElementById('tx-key-status').textContent = 'Key valid â€¢ AES-GCM-256 active';
+    document.getElementById('tx-key-status').textContent = 'Key valid • AES-GCM-256 active';
     document.getElementById('tx-key-status').style.color = 'var(--green)';
     log('tx-log', `Encrypted file exported: ${encrypted.length} bytes`);
   } catch (e) {
@@ -1168,7 +1160,7 @@ function handleEncFile(e) {
     rxEncBuffer = new Uint8Array(ev.target.result);
     const info = document.getElementById('rx-enc-info');
     const stat = document.getElementById('rx-decrypt-status');
-    info.textContent = `${file.name} â€¢ ${rxEncBuffer.length} bytes`;
+    info.textContent = `${file.name} • ${rxEncBuffer.length} bytes`;
     info.style.color = 'var(--cyan)';
     stat.textContent = 'Encrypted file loaded. Ready for decryption.';
     stat.style.color = 'var(--yellow)';
@@ -1185,20 +1177,20 @@ async function attemptDecrypt() {
     stat.style.color = 'var(--red)';
     return;
   }
-
+  
   let data = rxEncBuffer;
   if (!data) {
     const encData = prompt('No file loaded. Paste base64 encrypted data:');
     if (!encData) return;
     data = Uint8Array.from(atob(encData), c => c.charCodeAt(0));
   }
-
+  
   try {
     const decrypted = await decryptData(data, passphrase);
     document.getElementById('rx-text').textContent = decrypted;
     stat.textContent = 'Decryption successful';
     stat.style.color = 'var(--green)';
-    log('rx-log', 'Decryption successful â€¢ Message recovered');
+    log('rx-log', 'Decryption successful • Message recovered');
   } catch (e) {
     stat.textContent = 'Decryption failed';
     stat.style.color = 'var(--red)';
@@ -1216,7 +1208,7 @@ function encodeText() {
   }
   txBinary = bits.join('');
   document.getElementById('tx-binary').textContent = txBinary || 'Awaiting encoding...';
-  log('tx-log', `Encoded ${bytes.length} bytes â†’ ${txBinary.length} bits`);
+  log('tx-log', `Encoded ${bytes.length} bytes → ${txBinary.length} bits`);
   drawBitStream();
 }
 
@@ -1292,26 +1284,26 @@ function transmit() {
   const overlay = document.getElementById('transmit-overlay');
   overlay.classList.add('active');
   log('tx-log', 'Starting audio transmission...');
-
+  
   const rate = parseInt(document.getElementById('tx-rate').value);
   const freq = parseInt(document.getElementById('tx-freq').value);
   const baud = parseInt(document.getElementById('tx-baud').value);
   const vol = parseInt(document.getElementById('tx-volume').value) / 100;
   const noise = parseInt(document.getElementById('tx-noise').value) / 100;
   const mod = document.getElementById('tx-mod').value;
-
+  
   const samplesPerSymbol = Math.floor(rate / baud);
   const totalSamples = txBinary.length * samplesPerSymbol;
   const buf = audioCtx.createBuffer(1, totalSamples, rate);
   const data = buf.getChannelData(0);
-
+  
   for (let i = 0; i < txBinary.length; i++) {
     const bit = parseInt(txBinary[i]);
     let f = freq;
     if (mod === 'fsk2') f = bit ? freq + 500 : freq - 500;
     else if (mod === 'ook') f = bit ? freq : 0;
     else if (mod === 'bpsk') f = freq;
-
+    
     for (let s = 0; s < samplesPerSymbol; s++) {
       const t = (i * samplesPerSymbol + s) / rate;
       let sample = 0;
@@ -1329,16 +1321,16 @@ function transmit() {
       data[i * samplesPerSymbol + s] = sample;
     }
   }
-
+  
   const src = audioCtx.createBufferSource();
   src.buffer = buf;
   src.connect(audioCtx.destination);
   src.start();
-
+  
   drawSpectrum(data, rate, 'tx-spectrum');
   drawWaterfall(data, rate, 'tx-waterfall');
   drawOscope(data, 'tx-oscope');
-
+  
   src.onended = () => {
     overlay.classList.remove('active');
     log('tx-log', 'Transmission complete');
@@ -1354,11 +1346,11 @@ function generateWAV() {
   const vol = parseInt(document.getElementById('tx-volume').value) / 100;
   const samplesPerSymbol = Math.floor(rate / baud);
   const totalSamples = txBinary.length * samplesPerSymbol;
-
+  
   const wav = new ArrayBuffer(44 + totalSamples * 2);
   const view = new DataView(wav);
   const writeStr = (off, str) => { for (let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); };
-
+  
   writeStr(0, 'RIFF');
   view.setUint32(4, 36 + totalSamples * 2, true);
   writeStr(8, 'WAVE');
@@ -1372,7 +1364,7 @@ function generateWAV() {
   view.setUint16(34, 16, true);
   writeStr(36, 'data');
   view.setUint32(40, totalSamples * 2, true);
-
+  
   for (let i = 0; i < txBinary.length; i++) {
     const bit = parseInt(txBinary[i]);
     const f = bit ? freq + 500 : freq - 500;
@@ -1383,7 +1375,7 @@ function generateWAV() {
       view.setInt16(44 + (i * samplesPerSymbol + s) * 2, val * 0x7FFF, true);
     }
   }
-
+  
   const blob = new Blob([wav], { type: 'audio/wav' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1400,7 +1392,7 @@ async function toggleMic() {
     micStream.getTracks().forEach(t => t.stop());
     micNode.disconnect();
     micStream = null;
-    btn.textContent = 'ðŸŽ¤ START MIC';
+    btn.textContent = '🎤 START MIC';
     btn.classList.remove('danger');
     log('rx-log', 'Microphone stopped');
     return;
@@ -1411,7 +1403,7 @@ async function toggleMic() {
     const analyser = audioCtx.createAnalyser();
     analyser.fftSize = 2048;
     micNode.connect(analyser);
-    btn.textContent = 'â¹ STOP MIC';
+    btn.textContent = '⏹ STOP MIC';
     btn.classList.add('danger');
     log('rx-log', 'Microphone active');
     drawRxSpectrum(analyser);
@@ -1513,7 +1505,7 @@ function drawSpectrum(data, rate, id) {
   const w = c.width = c.offsetWidth;
   const h = c.height = c.offsetHeight;
   ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
-
+  
   const fftSize = 512;
   const fft = new Float32Array(fftSize);
   for (let i=0;i<fftSize;i++) {
@@ -1525,7 +1517,7 @@ function drawSpectrum(data, rate, id) {
     }
     fft[i] = Math.sqrt(re*re + im*im);
   }
-
+  
   ctx.beginPath();
   ctx.strokeStyle = '#00F0FF';
   for (let i=0;i<fftSize/2;i++) {
@@ -1574,7 +1566,7 @@ function drawBitStream() {
   const h = c.height = c.offsetHeight;
   ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
   if (!txBinary) return;
-
+  
   ctx.fillStyle = '#00F0FF';
   const bitsToShow = Math.min(txBinary.length, w/4);
   for (let i=0;i<bitsToShow;i++) {
@@ -1589,7 +1581,7 @@ function drawRxSpectrum(analyser) {
   if (!c) return;
   const ctx = c.getContext('2d');
   const data = new Uint8Array(analyser.frequencyBinCount);
-
+  
   function draw() {
     if (!micStream) return;
     analyser.getByteFrequencyData(data);
@@ -1618,7 +1610,7 @@ function showConstellation() {
   ctx.moveTo(w/2,0); ctx.lineTo(w/2,h);
   ctx.moveTo(0,h/2); ctx.lineTo(w,h/2);
   ctx.stroke();
-
+  
   const mod = document.getElementById('tx-mod').value;
   let points = [];
   if (mod === 'qpsk' || mod === 'dqpsk') {
@@ -1628,7 +1620,7 @@ function showConstellation() {
   } else if (mod.includes('fsk')) {
     points = [[0,1],[0,-1],[1,0],[-1,0]];
   }
-
+  
   ctx.fillStyle = '#00FF88';
   for (let p of points) {
     ctx.beginPath();
@@ -1644,7 +1636,7 @@ function closeConstellation() {
 /* ==================== INIT ==================== */
 window.addEventListener('load', () => {
   log('tx-log', 'HoloRadio initialized');
-  log('tx-log', 'System ready â€¢ Offline capable');
+  log('tx-log', 'System ready • Offline capable');
   drawBitStream();
 });
 </script>
