@@ -1,9 +1,10 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -11,27 +12,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
 
-      - run: npm install
+      - name: Install dependencies
+        run: npm ci
 
-      - run: npm install @capacitor/cli
+      - name: Verify Capacitor
+        run: npx cap doctor
 
-      - run: npx cap add android
+      - name: Sync Capacitor
+        run: npx cap sync android
 
-      - run: npx cap sync
-
-      - run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
-
-      - uses: actions/upload-artifact@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          name: app-debug
-          path: android/app/build/outputs/apk/debug/*.apk
+          distribution: temurin
+          java-version: 21
+
+      - name: Make Gradle executable
+        run: chmod +x android/gradlew
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CyberpunkAPK-Debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
