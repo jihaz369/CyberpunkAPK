@@ -1,27 +1,1644 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cyberpunk APK</title>
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#05070A">
+<title>HoloRadio Digital Modem</title>
+<style>
+/* ==================== ROOT & THEME ==================== */
+:root {
+  --bg: #05070A;
+  --panel-bg: rgba(10, 20, 40, 0.65);
+  --cyan: #00F0FF;
+  --cyan-dim: rgba(0, 240, 255, 0.3);
+  --blue: #0066FF;
+  --blue-dim: rgba(0, 102, 255, 0.2);
+  --green: #00FF88;
+  --red: #FF3366;
+  --yellow: #FFCC00;
+  --grid: rgba(0, 240, 255, 0.06);
+  --glass: rgba(15, 30, 60, 0.4);
+  --border: rgba(0, 240, 255, 0.25);
+  --font-mono: 'Courier New', 'Consolas', monospace;
+  --font-ui: 'Segoe UI', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* ==================== BACKGROUND EFFECTS ==================== */
+#bg-grid {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#radar-sweep {
+  position: fixed;
+  top: 50%; left: 50%;
+  width: 600px; height: 600px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--cyan-dim);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.15;
+}
+
+#radar-sweep::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  width: 50%; height: 50%;
+  background: linear-gradient(180deg, var(--cyan-dim), transparent);
+  transform-origin: 0 100%;
+  animation: radar 4s linear infinite;
+  border-radius: 0 100% 0 0;
+}
+
+@keyframes radar {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ==================== LAYOUT ==================== */
+.app-container {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+header {
+  text-align: center;
+  padding: 20px 0 30px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+header h1 {
+  font-size: 2.2rem;
+  letter-spacing: 4px;
+  text-shadow: 0 0 20px var(--cyan), 0 0 40px var(--blue);
+  font-weight: 300;
+}
+
+header .subtitle {
+  font-size: 0.85rem;
+  color: var(--cyan-dim);
+  letter-spacing: 6px;
+  margin-top: 8px;
+}
+
+.mode-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.mode-tab {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--cyan);
+  padding: 10px 30px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-tab::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, var(--cyan-dim), transparent);
+  transition: left 0.5s;
+}
+
+.mode-tab:hover::before { left: 100%; }
+.mode-tab:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 15px var(--cyan-dim);
+}
+
+.mode-tab.active {
+  background: var(--cyan-dim);
+  border-color: var(--cyan);
+  box-shadow: 0 0 20px var(--cyan-dim), inset 0 0 20px var(--cyan-dim);
+}
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ==================== PANELS ==================== */
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 15px;
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  animation: scanline 3s linear infinite;
+}
+
+@keyframes scanline {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.panel-title {
+  font-size: 0.8rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  color: var(--cyan);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-title::before {
+  content: '◆';
+  color: var(--cyan);
+  font-size: 0.6rem;
+}
+
+/* ==================== GRID LAYOUTS ==================== */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; }
+
+@media (max-width: 900px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
+
+/* ==================== FORM ELEMENTS ==================== */
+input, textarea, select {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  color: var(--cyan);
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  border-radius: 2px;
+  width: 100%;
+  outline: none;
+  transition: all 0.3s;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan-dim);
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+label {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  color: var(--cyan-dim);
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: flex-end;
+}
+
+.form-group { flex: 1; }
+
+/* ==================== BUTTONS ==================== */
+.btn {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--cyan);
+  padding: 10px 20px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.btn:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 15px var(--cyan-dim);
+  background: rgba(0, 240, 255, 0.1);
+}
+
+.btn.primary {
+  border-color: var(--cyan);
+  background: rgba(0, 240, 255, 0.15);
+}
+
+.btn.primary:hover {
+  background: rgba(0, 240, 255, 0.25);
+  box-shadow: 0 0 25px var(--cyan-dim);
+}
+
+.btn.danger {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(255, 51, 102, 0.1);
+}
+
+.btn.danger:hover {
+  background: rgba(255, 51, 102, 0.2);
+  box-shadow: 0 0 15px rgba(255, 51, 102, 0.3);
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* ==================== TOGGLE SWITCH ==================== */
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-switch input {
+  display: none;
+}
+
+.toggle-slider {
+  width: 44px;
+  height: 24px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  background: var(--cyan-dim);
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  border-color: var(--green);
+  background: rgba(0, 255, 136, 0.15);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+  background: var(--green);
+  box-shadow: 0 0 10px var(--green);
+}
+
+.toggle-label {
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--cyan-dim);
+}
+
+.toggle-switch input:checked ~ .toggle-label {
+  color: var(--green);
+}
+
+/* ==================== DISPLAY AREAS ==================== */
+.display-box {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border);
+  padding: 10px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  min-height: 80px;
+  max-height: 200px;
+  overflow-y: auto;
+  color: var(--green);
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+.display-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.display-box::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.display-box::-webkit-scrollbar-thumb {
+  background: var(--cyan-dim);
+  border-radius: 3px;
+}
+
+/* ==================== CANVAS VISUALIZATIONS ==================== */
+.viz-canvas {
+  width: 100%;
+  height: 150px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+
+/* ==================== STATUS INDICATORS ==================== */
+.status-bar {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--cyan-dim);
+  box-shadow: 0 0 5px var(--cyan-dim);
+  animation: pulse 2s infinite;
+}
+
+.status-dot.active {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+
+.status-dot.error {
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ==================== METER / GAUGE ==================== */
+.meter-container {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  height: 20px;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), var(--cyan), var(--blue));
+  transition: width 0.2s;
+  width: 0%;
+  position: relative;
+}
+
+.meter-fill::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: #fff;
+  box-shadow: 0 0 5px #fff;
+}
+
+/* ==================== PACKET LIST ==================== */
+.packet-list {
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.75rem;
+}
+
+.packet-item {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.packet-item:last-child { border-bottom: none; }
+
+.packet-item.ok { color: var(--green); }
+.packet-item.err { color: var(--red); }
+
+/* ==================== CONSTELLATION ==================== */
+.constellation-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border);
+}
+
+/* ==================== ANIMATIONS ==================== */
+.transmit-anim {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(5, 7, 10, 0.9);
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.transmit-anim.active { display: flex; }
+
+.transmit-ring {
+  width: 100px; height: 100px;
+  border: 2px solid var(--cyan);
+  border-radius: 50%;
+  animation: transmitPulse 1s infinite;
+}
+
+@keyframes transmitPulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+/* ==================== LOGS ==================== */
+.log-box {
+  max-height: 150px;
+  overflow-y: auto;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--cyan-dim);
+}
+
+.log-entry {
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.05);
+}
+
+.log-time { color: var(--cyan); margin-right: 8px; }
+
+/* ==================== TOOLTIP / OVERLAY ==================== */
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(5, 7, 10, 0.95);
+  z-index: 200;
+  justify-content: center;
+  align-items: center;
+}
+
+.overlay.active { display: flex; }
+
+.overlay-content {
+  background: var(--panel-bg);
+  border: 1px solid var(--cyan);
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 0 40px var(--cyan-dim);
+}
+
+/* ==================== CHECKBOX ==================== */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--cyan);
+}
+
+/* ==================== SLIDER ==================== */
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 3px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  background: var(--cyan);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--cyan);
+}
+
+/* ==================== FOOTER ==================== */
+footer {
+  text-align: center;
+  padding: 20px;
+  font-size: 0.7rem;
+  color: var(--cyan-dim);
+  letter-spacing: 2px;
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+}
+
+/* ==================== SCROLLBAR ==================== */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+/* ==================== SETTINGS PANEL ==================== */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 600px) {
+  header h1 { font-size: 1.4rem; }
+  .mode-tab { padding: 8px 16px; font-size: 0.75rem; }
+  .btn { padding: 8px 14px; font-size: 0.75rem; }
+}
+</style>
+<base target="_blank">
 </head>
-
 <body>
+<div id="bg-grid"></div>
+<div id="radar-sweep"></div>
 
-<div class="panel">
+<div class="app-container">
+  <header>
+    <h1>◈ HOLO RADIO ◈</h1>
+    <div class="subtitle">DIGITAL MODEM SYSTEM // OFFLINE CAPABLE</div>
+  </header>
 
-<h1>CYBERPUNK SYSTEM</h1>
+  <div class="mode-tabs">
+    <button class="mode-tab active" onclick="switchTab('sender')">SENDER</button>
+    <button class="mode-tab" onclick="switchTab('receiver')">RECEIVER</button>
+    <button class="mode-tab" onclick="switchTab('settings')">SETTINGS</button>
+    <button class="mode-tab" onclick="switchTab('analyzer')">ANALYZER</button>
+  </div>
 
-<p>GitHub Actions APK Builder</p>
+  <!-- ==================== SENDER SCREEN ==================== -->
+  <div id="sender" class="screen active">
+    <div class="grid-2">
+      <!-- Text Input Panel -->
+      <div class="panel">
+        <div class="panel-title">Text Input</div>
+        <textarea id="tx-text" placeholder="Enter message to encode...">Hello, HoloRadio! This is a test transmission.</textarea>
+        <div class="btn-row">
+          <button class="btn" onclick="encodeText()">ENCODE</button>
+          <button class="btn" onclick="clearTx()">CLEAR</button>
+          <button class="btn" onclick="loadSample()">SAMPLE</button>
+        </div>
+      </div>
 
-<button id="btn">
-Activate
-</button>
+      <!-- Binary Output Panel -->
+      <div class="panel">
+        <div class="panel-title">Binary Output</div>
+        <div class="display-box" id="tx-binary">Awaiting encoding...</div>
+        <div class="btn-row">
+          <button class="btn" onclick="copyBinary()">COPY BINARY</button>
+          <button class="btn" onclick="downloadBinary()">EXPORT BIN</button>
+        </div>
+      </div>
+    </div>
 
+    <div class="grid-2">
+      <!-- Frame Builder Panel -->
+      <div class="panel">
+        <div class="panel-title">Frame Builder</div>
+        <div class="display-box" id="tx-frames">No frames generated</div>
+        <div class="btn-row">
+          <button class="btn" onclick="buildFrames()">BUILD FRAMES</button>
+          <button class="btn" onclick="exportFrames()">EXPORT FRAMES</button>
+        </div>
+      </div>
+
+      <!-- Packet List Panel -->
+      <div class="panel">
+        <div class="panel-title">Packet Monitor</div>
+        <div class="packet-list" id="tx-packets">
+          <div class="packet-item">No packets</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Encryption & Security Panel -->
+    <div class="panel">
+      <div class="panel-title">Security Layer</div>
+      <div class="grid-4">
+        <div class="form-group" style="display:flex;align-items:center;gap:15px;">
+          <label class="toggle-switch">
+            <input type="checkbox" id="tx-encrypt-toggle" onchange="toggleEncryption()">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label" id="tx-encrypt-label">ENCRYPTION OFF</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Passphrase</label>
+          <input type="password" id="tx-passphrase" placeholder="Enter key..." disabled>
+        </div>
+        <div class="form-group">
+          <label>Key Status</label>
+          <div class="display-box" id="tx-key-status" style="min-height:36px;display:flex;align-items:center;color:var(--cyan-dim);">No key loaded</div>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;">
+          <button class="btn primary" onclick="downloadEncrypted()" id="btn-download-enc" disabled>⬇ DOWNLOAD ENCRYPTED (.ENC)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Transmission Controls</div>
+      <div class="grid-4">
+        <div class="form-group">
+          <label>Modulation</label>
+          <select id="tx-mod">
+            <option value="fsk2">Binary FSK</option>
+            <option value="fsk4">4-FSK</option>
+            <option value="fsk8">8-FSK</option>
+            <option value="fsk16">16-FSK</option>
+            <option value="bpsk">BPSK</option>
+            <option value="qpsk">QPSK</option>
+            <option value="psk8">8PSK</option>
+            <option value="ook">OOK</option>
+            <option value="ask">ASK</option>
+            <option value="msk">MSK</option>
+            <option value="gmsk">GMSK</option>
+            <option value="mfsk">MFSK</option>
+            <option value="dbpsk">Differential BPSK</option>
+            <option value="dqpsk">Differential QPSK</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sample Rate</label>
+          <select id="tx-rate">
+            <option value="8000">8000 Hz</option>
+            <option value="16000">16000 Hz</option>
+            <option value="22050" selected>22050 Hz</option>
+            <option value="44100">44100 Hz</option>
+            <option value="48000">48000 Hz</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Center Freq (Hz)</label>
+          <input type="number" id="tx-freq" value="1500" min="100" max="8000">
+        </div>
+        <div class="form-group">
+          <label>Symbol Rate</label>
+          <input type="number" id="tx-baud" value="300" min="50" max="5000">
+        </div>
+      </div>
+      <div class="grid-4" style="margin-top:10px">
+        <div class="form-group">
+          <label>Frame Size (bytes)</label>
+          <input type="number" id="tx-frame-size" value="32" min="8" max="256">
+        </div>
+        <div class="form-group">
+          <label>Volume</label>
+          <input type="range" id="tx-volume" min="0" max="100" value="80">
+        </div>
+        <div class="form-group">
+          <label>Noise Level</label>
+          <input type="range" id="tx-noise" min="0" max="100" value="0">
+        </div>
+        <div class="form-group">
+          <div class="checkbox-row">
+            <input type="checkbox" id="tx-crc" checked>
+            <label style="margin:0">CRC-16</label>
+          </div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="tx-fec">
+            <label style="margin:0">FEC</label>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:15px">
+        <button class="btn primary" onclick="transmit()">▶ TRANSMIT AUDIO</button>
+        <button class="btn primary" onclick="generateWAV()">⬇ GENERATE WAV</button>
+        <button class="btn" onclick="showConstellation()">CONSTELLATION</button>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-title">Spectrum Analyzer</div>
+        <canvas id="tx-spectrum" class="viz-canvas" height="150"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Waterfall Display</div>
+        <canvas id="tx-waterfall" class="viz-canvas" height="150"></canvas>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-title">Oscilloscope</div>
+        <canvas id="tx-oscope" class="viz-canvas" height="150"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Bit Stream</div>
+        <canvas id="tx-bitstream" class="viz-canvas" height="150"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">System Log</div>
+      <div class="log-box" id="tx-log"></div>
+    </div>
+  </div>
+
+  <!-- ==================== RECEIVER SCREEN ==================== -->
+  <div id="receiver" class="screen">
+    <div class="grid-2">
+      <!-- Input Panel -->
+      <div class="panel">
+        <div class="panel-title">Signal Input</div>
+        <div class="btn-row">
+          <button class="btn primary" id="rx-mic-btn" onclick="toggleMic()">🎤 START MIC</button>
+          <button class="btn" onclick="loadWAV()">📁 LOAD WAV</button>
+          <button class="btn primary" onclick="decodeRx()">🔓 DECODE</button>
+          <button class="btn" onclick="downloadRxWAV()">⬇ DOWNLOAD WAV</button>
+          <button class="btn" onclick="copyRxBinary()">📋 COPY BINARY</button>
+          <button class="btn danger" onclick="stopRx()">⏹ STOP</button>
+        </div>
+        <input type="file" id="wav-file" accept=".wav,.audio" style="display:none" onchange="handleWAV(event)">
+        <div style="margin-top:12px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span style="font-size:0.75rem;color:var(--cyan-dim);">BUFFER:</span>
+            <div class="meter-container" style="flex:1;height:12px;">
+              <div class="meter-fill" id="rx-buffer-meter" style="width:0%"></div>
+            </div>
+            <span id="rx-buffer-label" style="font-size:0.75rem;color:var(--cyan-dim);min-width:70px;text-align:right;">0.0s</span>
+          </div>
+          <div class="status-bar">
+            <div class="status-item"><div class="status-dot" id="rx-sync-dot"></div> SYNC</div>
+            <div class="status-item"><div class="status-dot" id="rx-crc-dot"></div> CRC</div>
+            <div class="status-item"><div class="status-dot" id="rx-rx-dot"></div> RECEIVING</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Decoded Text Panel -->
+      <div class="panel">
+        <div class="panel-title">Decoded Text</div>
+        <div class="display-box" id="rx-text">Awaiting decode...</div>
+        <div class="btn-row">
+          <button class="btn" onclick="copyRxText()">COPY TEXT</button>
+          <button class="btn" onclick="saveRxText()">SAVE TXT</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Receiver Security / Decryption Panel -->
+    <div class="panel">
+      <div class="panel-title">Decryption Layer</div>
+      <div class="grid-4">
+        <div class="form-group" style="display:flex;align-items:center;gap:15px;">
+          <label class="toggle-switch">
+            <input type="checkbox" id="rx-encrypt-toggle" onchange="toggleRxEncryption()">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label" id="rx-encrypt-label">DECRYPTION OFF</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Passphrase</label>
+          <input type="password" id="rx-passphrase" placeholder="Enter key..." disabled>
+        </div>
+        <div class="form-group">
+          <label>Decryption Status</label>
+          <div class="display-box" id="rx-decrypt-status" style="min-height:36px;display:flex;align-items:center;color:var(--cyan-dim);">No decryption active</div>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;">
+          <button class="btn primary" onclick="attemptDecrypt()" id="btn-decrypt-now" disabled>🔓 DECRYPT BUFFER</button>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn" onclick="document.getElementById('enc-file').click()">📁 LOAD ENC FILE</button>
+        <input type="file" id="enc-file" accept=".enc,.bin" style="display:none" onchange="handleEncFile(event)">
+        <span id="rx-enc-info" style="font-size:0.75rem;color:var(--cyan-dim);align-self:center;margin-left:auto;">No encrypted file loaded</span>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-title">Binary Input</div>
+        <div class="display-box" id="rx-binary">No data received</div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Packet Log</div>
+        <div class="packet-list" id="rx-packets">
+          <div class="packet-item">No packets</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-title">Signal Scope</div>
+        <canvas id="rx-oscope" class="viz-canvas" height="150"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Constellation</div>
+        <canvas id="rx-constellation" class="viz-canvas" height="150"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Receiver Log</div>
+      <div class="log-box" id="rx-log"></div>
+    </div>
+  </div>
+
+  <!-- ==================== SETTINGS SCREEN ==================== -->
+  <div id="settings" class="screen">
+    <div class="panel">
+      <div class="panel-title">System Configuration</div>
+      <div class="settings-grid">
+        <div class="form-group">
+          <label>Audio Output Device</label>
+          <select id="out-device"><option>Default</option></select>
+        </div>
+        <div class="form-group">
+          <label>Input Gain (dB)</label>
+          <input type="range" min="0" max="40" value="20" id="in-gain">
+        </div>
+        <div class="form-group">
+          <label>AGC</label>
+          <select id="agc-mode"><option>Fast</option><option>Slow</option><option>Off</option></select>
+        </div>
+        <div class="form-group">
+          <label>Squelch (dB)</label>
+          <input type="number" value="-40" id="squelch">
+        </div>
+        <div class="form-group">
+          <label>Preamble Length</label>
+          <input type="number" value="64" id="preamble-len">
+        </div>
+        <div class="form-group">
+          <label>Postamble Length</label>
+          <input type="number" value="32" id="postamble-len">
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Encryption Defaults</div>
+      <div class="settings-grid">
+        <div class="form-group">
+          <label>Algorithm</label>
+          <select id="enc-algo"><option>AES-GCM-256</option><option>ChaCha20-Poly1305</option></select>
+        </div>
+        <div class="form-group">
+          <label>Key Derivation</label>
+          <select id="enc-kdf"><option>PBKDF2 (100k iter)</option><option>Argon2id (sim)</option></select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ANALYZER SCREEN ==================== -->
+  <div id="analyzer" class="screen">
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-title">Frequency Domain</div>
+        <canvas id="an-spectrum" class="viz-canvas" height="200"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Spectrogram</div>
+        <canvas id="an-waterfall" class="viz-canvas" height="200"></canvas>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Statistics</div>
+      <div class="grid-4" style="font-size:0.8rem;">
+        <div>SNR: <span id="stat-snr">--</span> dB</div>
+        <div>BER: <span id="stat-ber">--</span></div>
+        <div>FER: <span id="stat-fer">--</span></div>
+        <div>Lock: <span id="stat-lock">UNLOCKED</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== OVERLAYS ==================== -->
+  <div class="overlay" id="constellation-overlay">
+    <div class="overlay-content">
+      <div class="panel-title">Constellation Diagram</div>
+      <div class="constellation-container">
+        <canvas id="constellation-canvas" width="400" height="200"></canvas>
+      </div>
+      <div class="btn-row" style="justify-content:center;margin-top:15px;">
+        <button class="btn" onclick="closeConstellation()">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="transmit-anim" id="transmit-overlay">
+    <div class="transmit-ring"></div>
+    <div style="margin-top:30px;letter-spacing:4px;">TRANSMITTING</div>
+  </div>
+
+  <footer>
+    HOLO RADIO v1.0 // OFFLINE DIGITAL MODEM // NO EXTERNAL DEPENDENCIES
+  </footer>
 </div>
 
-<script src="script.js"></script>
+<script>
+/* ==================== STATE ==================== */
+let audioCtx = null;
+let micStream = null;
+let micNode = null;
+let rxBuffer = [];
+let txBinary = '';
+let txFrames = [];
+let isEncrypting = false;
+let isDecrypting = false;
+let cryptoKey = null;
+let iv = null;
+let rxEncBuffer = null; // Stores uploaded encrypted file
 
+/* ==================== UTILS ==================== */
+function log(id, msg) {
+  const box = document.getElementById(id);
+  const time = new Date().toLocaleTimeString('en-US',{hour12:false});
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
+  box.appendChild(entry);
+  box.scrollTop = box.scrollHeight;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tab).classList.add('active');
+  event.target.classList.add('active');
+}
+
+/* ==================== ENCRYPTION ==================== */
+async function deriveKey(passphrase, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(passphrase), { name: 'PBKDF2' }, false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+function toggleEncryption() {
+  const chk = document.getElementById('tx-encrypt-toggle');
+  const inp = document.getElementById('tx-passphrase');
+  const lbl = document.getElementById('tx-encrypt-label');
+  const btn = document.getElementById('btn-download-enc');
+  const stat = document.getElementById('tx-key-status');
+  
+  isEncrypting = chk.checked;
+  inp.disabled = !isEncrypting;
+  btn.disabled = !isEncrypting;
+  
+  if (isEncrypting) {
+    lbl.textContent = 'ENCRYPTION ON';
+    lbl.style.color = 'var(--green)';
+    stat.textContent = 'Awaiting key input...';
+    stat.style.color = 'var(--yellow)';
+    log('tx-log', 'Encryption layer activated');
+  } else {
+    lbl.textContent = 'ENCRYPTION OFF';
+    lbl.style.color = 'var(--cyan-dim)';
+    stat.textContent = 'No key loaded';
+    stat.style.color = 'var(--cyan-dim)';
+    cryptoKey = null;
+    log('tx-log', 'Encryption layer deactivated');
+  }
+}
+
+function toggleRxEncryption() {
+  const chk = document.getElementById('rx-encrypt-toggle');
+  const inp = document.getElementById('rx-passphrase');
+  const lbl = document.getElementById('rx-encrypt-label');
+  const btn = document.getElementById('btn-decrypt-now');
+  const stat = document.getElementById('rx-decrypt-status');
+  
+  isDecrypting = chk.checked;
+  inp.disabled = !isDecrypting;
+  btn.disabled = !isDecrypting;
+  
+  if (isDecrypting) {
+    lbl.textContent = 'DECRYPTION ON';
+    lbl.style.color = 'var(--green)';
+    stat.textContent = 'Awaiting key input...';
+    stat.style.color = 'var(--yellow)';
+    log('rx-log', 'Decryption layer activated');
+  } else {
+    lbl.textContent = 'DECRYPTION OFF';
+    lbl.style.color = 'var(--cyan-dim)';
+    stat.textContent = 'No decryption active';
+    stat.style.color = 'var(--cyan-dim)';
+    log('rx-log', 'Decryption layer deactivated');
+  }
+}
+
+async function getCryptoKey(passphrase) {
+  if (!passphrase) return null;
+  const salt = new TextEncoder().encode('HoloRadioSalt_v1');
+  return deriveKey(passphrase, salt);
+}
+
+async function encryptData(plaintext, passphrase) {
+  const key = await getCryptoKey(passphrase);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv },
+    key,
+    enc.encode(plaintext)
+  );
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  return combined;
+}
+
+async function decryptData(data, passphrase) {
+  const key = await getCryptoKey(passphrase);
+  const iv = data.slice(0, 12);
+  const ciphertext = data.slice(12);
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv },
+    key,
+    ciphertext
+  );
+  return new TextDecoder().decode(decrypted);
+}
+
+async function downloadEncrypted() {
+  const passphrase = document.getElementById('tx-passphrase').value;
+  if (!passphrase) {
+    log('tx-log', 'ERROR: Passphrase required for encrypted export');
+    alert('Enter a passphrase before exporting encrypted data.');
+    return;
+  }
+  const text = document.getElementById('tx-text').value;
+  if (!text) {
+    log('tx-log', 'ERROR: No text to encrypt');
+    return;
+  }
+  try {
+    const encrypted = await encryptData(text, passphrase);
+    const blob = new Blob([encrypted], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'holomessage.enc';
+    a.click();
+    URL.revokeObjectURL(url);
+    document.getElementById('tx-key-status').textContent = 'Key valid • AES-GCM-256 active';
+    document.getElementById('tx-key-status').style.color = 'var(--green)';
+    log('tx-log', `Encrypted file exported: ${encrypted.length} bytes`);
+  } catch (e) {
+    log('tx-log', 'Encryption failed: ' + e.message);
+  }
+}
+
+function handleEncFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    rxEncBuffer = new Uint8Array(ev.target.result);
+    const info = document.getElementById('rx-enc-info');
+    const stat = document.getElementById('rx-decrypt-status');
+    info.textContent = `${file.name} • ${rxEncBuffer.length} bytes`;
+    info.style.color = 'var(--cyan)';
+    stat.textContent = 'Encrypted file loaded. Ready for decryption.';
+    stat.style.color = 'var(--yellow)';
+    log('rx-log', `Encrypted file loaded: ${rxEncBuffer.length} bytes`);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function attemptDecrypt() {
+  const passphrase = document.getElementById('rx-passphrase').value;
+  const stat = document.getElementById('rx-decrypt-status');
+  if (!passphrase) {
+    stat.textContent = 'ERROR: No passphrase';
+    stat.style.color = 'var(--red)';
+    return;
+  }
+  
+  let data = rxEncBuffer;
+  if (!data) {
+    const encData = prompt('No file loaded. Paste base64 encrypted data:');
+    if (!encData) return;
+    data = Uint8Array.from(atob(encData), c => c.charCodeAt(0));
+  }
+  
+  try {
+    const decrypted = await decryptData(data, passphrase);
+    document.getElementById('rx-text').textContent = decrypted;
+    stat.textContent = 'Decryption successful';
+    stat.style.color = 'var(--green)';
+    log('rx-log', 'Decryption successful • Message recovered');
+  } catch (e) {
+    stat.textContent = 'Decryption failed';
+    stat.style.color = 'var(--red)';
+    log('rx-log', 'Decryption failed: ' + e.message);
+  }
+}
+
+/* ==================== SENDER ==================== */
+function encodeText() {
+  const text = document.getElementById('tx-text').value;
+  const bits = [];
+  const bytes = new TextEncoder().encode(text);
+  for (let b of bytes) {
+    bits.push(b.toString(2).padStart(8, '0'));
+  }
+  txBinary = bits.join('');
+  document.getElementById('tx-binary').textContent = txBinary || 'Awaiting encoding...';
+  log('tx-log', `Encoded ${bytes.length} bytes → ${txBinary.length} bits`);
+  drawBitStream();
+}
+
+function clearTx() {
+  document.getElementById('tx-text').value = '';
+  document.getElementById('tx-binary').textContent = 'Awaiting encoding...';
+  document.getElementById('tx-frames').textContent = 'No frames generated';
+  document.getElementById('tx-packets').innerHTML = '<div class="packet-item">No packets</div>';
+  txBinary = '';
+  txFrames = [];
+  log('tx-log', 'Cleared all TX data');
+}
+
+function loadSample() {
+  document.getElementById('tx-text').value = 'HoloRadio Test Message #42. Signal check. Over.';
+  encodeText();
+  log('tx-log', 'Sample message loaded');
+}
+
+function copyBinary() {
+  if (!txBinary) return;
+  navigator.clipboard.writeText(txBinary);
+  log('tx-log', 'Binary copied to clipboard');
+}
+
+function downloadBinary() {
+  if (!txBinary) return;
+  const blob = new Blob([txBinary], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'holodata.bin.txt'; a.click();
+  URL.revokeObjectURL(url);
+  log('tx-log', 'Binary exported');
+}
+
+function buildFrames() {
+  if (!txBinary) { encodeText(); }
+  const frameSize = parseInt(document.getElementById('tx-frame-size').value) * 8;
+  txFrames = [];
+  const pktList = document.getElementById('tx-packets');
+  pktList.innerHTML = '';
+  for (let i = 0; i < txBinary.length; i += frameSize) {
+    const frame = txBinary.slice(i, i + frameSize);
+    txFrames.push(frame);
+    const div = document.createElement('div');
+    div.className = 'packet-item ok';
+    div.innerHTML = `<span>FRAME ${String(txFrames.length).padStart(3,'0')}</span><span>${frame.length} bits</span>`;
+    pktList.appendChild(div);
+  }
+  document.getElementById('tx-frames').textContent = `Generated ${txFrames.length} frames`;
+  log('tx-log', `Built ${txFrames.length} frames @ ${frameSize/8} bytes each`);
+}
+
+function exportFrames() {
+  if (!txFrames.length) return;
+  const data = txFrames.join('\n');
+  const blob = new Blob([data], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'holoframes.txt'; a.click();
+  URL.revokeObjectURL(url);
+  log('tx-log', 'Frames exported');
+}
+
+/* ==================== AUDIO / TX ==================== */
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function transmit() {
+  initAudio();
+  if (!txBinary) encodeText();
+  const overlay = document.getElementById('transmit-overlay');
+  overlay.classList.add('active');
+  log('tx-log', 'Starting audio transmission...');
+  
+  const rate = parseInt(document.getElementById('tx-rate').value);
+  const freq = parseInt(document.getElementById('tx-freq').value);
+  const baud = parseInt(document.getElementById('tx-baud').value);
+  const vol = parseInt(document.getElementById('tx-volume').value) / 100;
+  const noise = parseInt(document.getElementById('tx-noise').value) / 100;
+  const mod = document.getElementById('tx-mod').value;
+  
+  const samplesPerSymbol = Math.floor(rate / baud);
+  const totalSamples = txBinary.length * samplesPerSymbol;
+  const buf = audioCtx.createBuffer(1, totalSamples, rate);
+  const data = buf.getChannelData(0);
+  
+  for (let i = 0; i < txBinary.length; i++) {
+    const bit = parseInt(txBinary[i]);
+    let f = freq;
+    if (mod === 'fsk2') f = bit ? freq + 500 : freq - 500;
+    else if (mod === 'ook') f = bit ? freq : 0;
+    else if (mod === 'bpsk') f = freq;
+    
+    for (let s = 0; s < samplesPerSymbol; s++) {
+      const t = (i * samplesPerSymbol + s) / rate;
+      let sample = 0;
+      if (mod === 'bpsk') {
+        sample = Math.sin(2 * Math.PI * f * t + (bit ? Math.PI : 0));
+      } else if (mod === 'qpsk') {
+        const sym = (i % 2 === 0) ? (bit ? 1 : 0) : (bit ? 3 : 2);
+        const phase = sym * Math.PI / 2;
+        sample = Math.sin(2 * Math.PI * f * t + phase);
+      } else {
+        sample = f > 0 ? Math.sin(2 * Math.PI * f * t) : 0;
+      }
+      sample *= vol;
+      if (noise > 0) sample += (Math.random() * 2 - 1) * noise;
+      data[i * samplesPerSymbol + s] = sample;
+    }
+  }
+  
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(audioCtx.destination);
+  src.start();
+  
+  drawSpectrum(data, rate, 'tx-spectrum');
+  drawWaterfall(data, rate, 'tx-waterfall');
+  drawOscope(data, 'tx-oscope');
+  
+  src.onended = () => {
+    overlay.classList.remove('active');
+    log('tx-log', 'Transmission complete');
+  };
+}
+
+function generateWAV() {
+  initAudio();
+  if (!txBinary) encodeText();
+  const rate = parseInt(document.getElementById('tx-rate').value);
+  const freq = parseInt(document.getElementById('tx-freq').value);
+  const baud = parseInt(document.getElementById('tx-baud').value);
+  const vol = parseInt(document.getElementById('tx-volume').value) / 100;
+  const samplesPerSymbol = Math.floor(rate / baud);
+  const totalSamples = txBinary.length * samplesPerSymbol;
+  
+  const wav = new ArrayBuffer(44 + totalSamples * 2);
+  const view = new DataView(wav);
+  const writeStr = (off, str) => { for (let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); };
+  
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + totalSamples * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, totalSamples * 2, true);
+  
+  for (let i = 0; i < txBinary.length; i++) {
+    const bit = parseInt(txBinary[i]);
+    const f = bit ? freq + 500 : freq - 500;
+    for (let s = 0; s < samplesPerSymbol; s++) {
+      const t = (i * samplesPerSymbol + s) / rate;
+      const sample = Math.sin(2 * Math.PI * f * t) * vol;
+      const val = Math.max(-1, Math.min(1, sample));
+      view.setInt16(44 + (i * samplesPerSymbol + s) * 2, val * 0x7FFF, true);
+    }
+  }
+  
+  const blob = new Blob([wav], { type: 'audio/wav' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'holotx.wav'; a.click();
+  URL.revokeObjectURL(url);
+  log('tx-log', 'WAV file generated');
+}
+
+/* ==================== RECEIVER ==================== */
+async function toggleMic() {
+  initAudio();
+  const btn = document.getElementById('rx-mic-btn');
+  if (micStream) {
+    micStream.getTracks().forEach(t => t.stop());
+    micNode.disconnect();
+    micStream = null;
+    btn.textContent = '🎤 START MIC';
+    btn.classList.remove('danger');
+    log('rx-log', 'Microphone stopped');
+    return;
+  }
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micNode = audioCtx.createMediaStreamSource(micStream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    micNode.connect(analyser);
+    btn.textContent = '⏹ STOP MIC';
+    btn.classList.add('danger');
+    log('rx-log', 'Microphone active');
+    drawRxSpectrum(analyser);
+  } catch (e) {
+    log('rx-log', 'Mic error: ' + e.message);
+  }
+}
+
+function loadWAV() { document.getElementById('wav-file').click(); }
+
+function handleWAV(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    initAudio();
+    audioCtx.decodeAudioData(ev.target.result, function(buf) {
+      rxBuffer = buf.getChannelData(0);
+      document.getElementById('rx-buffer-meter').style.width = '100%';
+      document.getElementById('rx-buffer-label').textContent = buf.duration.toFixed(1) + 's';
+      log('rx-log', `Loaded WAV: ${rxBuffer.length} samples, ${buf.duration.toFixed(2)}s`);
+      drawOscope(rxBuffer, 'rx-oscope');
+    });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function decodeRx() {
+  if (!rxBuffer.length) {
+    log('rx-log', 'No signal to decode');
+    return;
+  }
+  // Simple threshold decoder simulation
+  let bits = '';
+  const step = Math.floor(rxBuffer.length / 256);
+  for (let i = 0; i < rxBuffer.length; i += step) {
+    bits += rxBuffer[i] > 0 ? '1' : '0';
+  }
+  document.getElementById('rx-binary').textContent = bits;
+  // Convert to text
+  let text = '';
+  for (let i = 0; i < bits.length; i += 8) {
+    const byte = bits.slice(i, i + 8);
+    if (byte.length === 8) text += String.fromCharCode(parseInt(byte, 2));
+  }
+  document.getElementById('rx-text').textContent = text || 'Decode error';
+  log('rx-log', 'Decode complete');
+}
+
+function stopRx() {
+  if (micStream) {
+    micStream.getTracks().forEach(t => t.stop());
+    micNode.disconnect();
+    micStream = null;
+  }
+  rxBuffer = [];
+  document.getElementById('rx-buffer-meter').style.width = '0%';
+  document.getElementById('rx-buffer-label').textContent = '0.0s';
+  log('rx-log', 'Receiver stopped');
+}
+
+function downloadRxWAV() {
+  if (!rxBuffer.length) return;
+  // Simplified export
+  log('rx-log', 'RX WAV export (simulated)');
+}
+
+function copyRxBinary() {
+  const bin = document.getElementById('rx-binary').textContent;
+  if (bin && bin !== 'No data received') {
+    navigator.clipboard.writeText(bin);
+    log('rx-log', 'RX binary copied');
+  }
+}
+
+function copyRxText() {
+  const txt = document.getElementById('rx-text').textContent;
+  if (txt && txt !== 'Awaiting decode...') {
+    navigator.clipboard.writeText(txt);
+    log('rx-log', 'RX text copied');
+  }
+}
+
+function saveRxText() {
+  const txt = document.getElementById('rx-text').textContent;
+  if (!txt || txt === 'Awaiting decode...') return;
+  const blob = new Blob([txt], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'holod_rx.txt'; a.click();
+  URL.revokeObjectURL(url);
+  log('rx-log', 'RX text saved');
+}
+
+/* ==================== VISUALIZATIONS ==================== */
+function drawSpectrum(data, rate, id) {
+  const c = document.getElementById(id);
+  const ctx = c.getContext('2d');
+  const w = c.width = c.offsetWidth;
+  const h = c.height = c.offsetHeight;
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+  
+  const fftSize = 512;
+  const fft = new Float32Array(fftSize);
+  for (let i=0;i<fftSize;i++) {
+    let re=0, im=0;
+    for (let j=0;j<data.length;j++) {
+      const angle = -2 * Math.PI * i * j / fftSize;
+      re += data[j] * Math.cos(angle);
+      im += data[j] * Math.sin(angle);
+    }
+    fft[i] = Math.sqrt(re*re + im*im);
+  }
+  
+  ctx.beginPath();
+  ctx.strokeStyle = '#00F0FF';
+  for (let i=0;i<fftSize/2;i++) {
+    const x = i / (fftSize/2) * w;
+    const y = h - (fft[i] / (fftSize*2) * h * 4);
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+}
+
+function drawWaterfall(data, rate, id) {
+  const c = document.getElementById(id);
+  const ctx = c.getContext('2d');
+  const w = c.width = c.offsetWidth;
+  const h = c.height = c.offsetHeight;
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle = 'rgba(0,240,255,0.3)';
+  for (let i=0;i<w;i+=2) {
+    const idx = Math.floor((i/w) * data.length);
+    const val = Math.abs(data[idx]) * h;
+    ctx.fillRect(i, h-val, 2, val);
+  }
+}
+
+function drawOscope(data, id) {
+  const c = document.getElementById(id);
+  const ctx = c.getContext('2d');
+  const w = c.width = c.offsetWidth;
+  const h = c.height = c.offsetHeight;
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+  ctx.beginPath();
+  ctx.strokeStyle = '#00FF88';
+  const step = Math.max(1, Math.floor(data.length / w));
+  for (let i=0;i<w;i++) {
+    const idx = i * step;
+    const y = h/2 + data[idx] * h/3;
+    if (i===0) ctx.moveTo(i,y); else ctx.lineTo(i,y);
+  }
+  ctx.stroke();
+}
+
+function drawBitStream() {
+  const c = document.getElementById('tx-bitstream');
+  const ctx = c.getContext('2d');
+  const w = c.width = c.offsetWidth;
+  const h = c.height = c.offsetHeight;
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+  if (!txBinary) return;
+  
+  ctx.fillStyle = '#00F0FF';
+  const bitsToShow = Math.min(txBinary.length, w/4);
+  for (let i=0;i<bitsToShow;i++) {
+    const x = i * 4;
+    const bit = parseInt(txBinary[i]);
+    ctx.fillRect(x, bit ? 2 : h/2+2, 2, h/2-4);
+  }
+}
+
+function drawRxSpectrum(analyser) {
+  const c = document.getElementById('an-spectrum');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  
+  function draw() {
+    if (!micStream) return;
+    analyser.getByteFrequencyData(data);
+    const w = c.width = c.offsetWidth;
+    const h = c.height = c.offsetHeight;
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+    ctx.fillStyle = '#00F0FF';
+    const barW = w / data.length;
+    for (let i=0;i<data.length;i++) {
+      const barH = (data[i] / 255) * h;
+      ctx.fillRect(i*barW, h-barH, barW-1, barH);
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function showConstellation() {
+  document.getElementById('constellation-overlay').classList.add('active');
+  const c = document.getElementById('constellation-canvas');
+  const ctx = c.getContext('2d');
+  const w = c.width, h = c.height;
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle = 'rgba(0,240,255,0.3)';
+  ctx.beginPath();
+  ctx.moveTo(w/2,0); ctx.lineTo(w/2,h);
+  ctx.moveTo(0,h/2); ctx.lineTo(w,h/2);
+  ctx.stroke();
+  
+  const mod = document.getElementById('tx-mod').value;
+  let points = [];
+  if (mod === 'qpsk' || mod === 'dqpsk') {
+    points = [[1,1],[1,-1],[-1,1],[-1,-1]];
+  } else if (mod === 'bpsk' || mod === 'dbpsk') {
+    points = [[1,0],[-1,0]];
+  } else if (mod.includes('fsk')) {
+    points = [[0,1],[0,-1],[1,0],[-1,0]];
+  }
+  
+  ctx.fillStyle = '#00FF88';
+  for (let p of points) {
+    ctx.beginPath();
+    ctx.arc(w/2 + p[0]*40, h/2 - p[1]*40, 6, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function closeConstellation() {
+  document.getElementById('constellation-overlay').classList.remove('active');
+}
+
+/* ==================== INIT ==================== */
+window.addEventListener('load', () => {
+  log('tx-log', 'HoloRadio initialized');
+  log('tx-log', 'System ready • Offline capable');
+  drawBitStream();
+});
+</script>
 </body>
 </html>
