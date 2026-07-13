@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CyberpunkAPK</string>
+    <string name="title_activity_main">CyberpunkAPK</string>
+    <string name="package_name">com.jihaz369.cyberpunk</string>
+    <string name="custom_url_scheme">com.jihaz369.cyberpunk</string>
+</resources>

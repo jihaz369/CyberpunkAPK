@@ -1,0 +1,1 @@
+{"name":"cyberpunkapk","version":"1.0.0","scripts":{"build":"echo Build Complete"},"dependencies":{"@capacitor/android":"^8.4.1","@capacitor/cli":"^8.4.1","@capacitor/core":"^8.4.1"},"devDependencies":{"typescript":"^7.0.2"}}
