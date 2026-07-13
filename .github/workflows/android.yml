@@ -8,11 +8,10 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -24,11 +23,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify Capacitor
+      - name: Capacitor Doctor
         run: npx cap doctor
+
+      - name: Copy Web Assets
+        run: npx cap copy android
 
       - name: Sync Capacitor
         run: npx cap sync android
+
+      - name: Verify Assets
+        run: ls -R android/app/src/main
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -36,14 +41,13 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Make Gradle executable
-        run: chmod +x android/gradlew
-
-      - name: Build Debug APK
+      - name: Build APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
-      - name: Upload Debug APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: CyberpunkAPK-Debug
