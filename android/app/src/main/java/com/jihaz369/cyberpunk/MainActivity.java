@@ -20,7 +20,7 @@ public class MainActivity extends BridgeActivity {
     private static final int PERM_REQUEST_CODE = 1001;
 
     @Override
-    protected void onStart() {
+    public void onStart() {
         super.onStart();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestMissingPermissions();
