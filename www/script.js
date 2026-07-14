@@ -65,6 +65,7 @@ function downloadBinary() {
   a.href = url;
   a.download = 'encoded_' + Date.now() + '.bin';
   a.click();
+  URL.revokeObjectURL(url);
   log('Downloaded binary file', 'tx');
 }
 
@@ -100,6 +101,7 @@ function exportFrames() {
   a.href = url;
   a.download = 'frames_' + Date.now() + '.txt';
   a.click();
+  URL.revokeObjectURL(url);
   log('Exported frames', 'tx');
 }
 
@@ -124,7 +126,7 @@ function downloadEncrypted() {
     return;
   }
 
-  // Simple encryption simulation (XOR with passphrase)
+  // Encrypt binary data with passphrase
   const cleanBinary = binary.replace(/\s/g, '');
   const encrypted = simpleEncrypt(cleanBinary, passphrase);
 
@@ -134,6 +136,7 @@ function downloadEncrypted() {
   a.href = url;
   a.download = 'message_' + Date.now() + '.enc';
   a.click();
+  URL.revokeObjectURL(url);
   log('Downloaded encrypted message', 'tx');
 }
 
@@ -145,6 +148,11 @@ function simpleEncrypt(data, key) {
     result += String.fromCharCode(charCode ^ keyCharCode);
   }
   return result;
+}
+
+function simpleDecrypt(data, key) {
+  // XOR is symmetric, so decryption is same as encryption
+  return simpleEncrypt(data, key);
 }
 
 function transmit() {
@@ -167,6 +175,9 @@ function showTransmitOverlay() {
   document.getElementById('transmit-overlay').classList.add('active');
 }
 
+// Global audio context for generating WAV files
+let audioContext = null;
+
 function generateWAV() {
   const binary = document.getElementById('tx-binary').innerText;
   if (binary === 'Awaiting encoding...') {
@@ -176,16 +187,36 @@ function generateWAV() {
 
   const sampleRate = parseInt(document.getElementById('tx-rate').value);
   const frequency = parseInt(document.getElementById('tx-freq').value);
-  const duration = 2; // 2 seconds
+  const baud = parseInt(document.getElementById('tx-baud').value);
+  const volume = parseInt(document.getElementById('tx-volume').value) / 100;
 
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const samples = sampleRate * duration;
-  const audioBuffer = audioContext.createAudioBuffer(1, samples, sampleRate);
+  // Initialize audio context if needed
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  const cleanBinary = binary.replace(/\s/g, '');
+  const samplesPerSymbol = Math.floor(sampleRate / baud);
+  const totalSamples = cleanBinary.length * samplesPerSymbol;
+
+  // Create audio buffer
+  const audioBuffer = audioContext.createAudioBuffer(1, totalSamples, sampleRate);
   const data = audioBuffer.getChannelData(0);
 
-  // Generate simple sine wave
-  for (let i = 0; i < samples; i++) {
-    data[i] = Math.sin(2 * Math.PI * frequency * i / sampleRate) * 0.3;
+  // Modulate binary data into audio (FSK modulation)
+  const freq0 = frequency - 100; // 0 bit frequency
+  const freq1 = frequency + 100; // 1 bit frequency
+
+  let sampleIndex = 0;
+  for (let bitIdx = 0; bitIdx < cleanBinary.length; bitIdx++) {
+    const bit = cleanBinary[bitIdx];
+    const freq = bit === '0' ? freq0 : freq1;
+
+    for (let s = 0; s < samplesPerSymbol; s++) {
+      const t = (sampleIndex + s) / sampleRate;
+      data[sampleIndex + s] = Math.sin(2 * Math.PI * freq * t) * volume * 0.3;
+    }
+    sampleIndex += samplesPerSymbol;
   }
 
   // Convert to WAV and download
@@ -196,7 +227,8 @@ function generateWAV() {
   a.href = url;
   a.download = 'transmission_' + Date.now() + '.wav';
   a.click();
-  log('Generated WAV file', 'tx');
+  URL.revokeObjectURL(url);
+  log('Generated WAV file with ' + cleanBinary.length + ' bits modulated', 'tx');
 }
 
 function audioBufferToWav(audioBuffer) {
@@ -238,11 +270,10 @@ function audioBufferToWav(audioBuffer) {
   view.setUint32(40, dataLength, true);
 
   let offset = 44;
-  const volume = parseInt(document.getElementById('tx-volume').value) / 100;
 
   for (let i = 0; i < audioBuffer.length; i++) {
     for (let j = 0; j < numChannels; j++) {
-      const sample = Math.max(-1, Math.min(1, channelData[j][i] * volume));
+      const sample = Math.max(-1, Math.min(1, channelData[j][i]));
       view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
       offset += 2;
     }
@@ -306,6 +337,8 @@ function drawConstellation() {
 
 // ==================== RECEIVER FUNCTIONS ====================
 let micStream = null;
+let rxBuffer = null;
+let rxEncryptedData = null;
 
 function toggleMic() {
   if (micStream) {
@@ -314,10 +347,15 @@ function toggleMic() {
     document.getElementById('rx-mic-btn').innerText = '🎤 START MIC';
     log('Microphone stopped', 'rx');
   } else {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         micStream = stream;
         document.getElementById('rx-mic-btn').innerText = '🎤 STOP MIC';
+        document.getElementById('rx-buffer-meter').style.width = '100%';
+        document.getElementById('rx-buffer-label').innerText = 'LIVE';
         log('Microphone started', 'rx');
       })
       .catch(err => {
@@ -337,30 +375,73 @@ function handleWAV(event) {
 
   const reader = new FileReader();
   reader.onload = function(e) {
-    const arrayBuffer = e.target.result;
-    document.getElementById('rx-buffer-meter').style.width = '75%';
-    document.getElementById('rx-buffer-label').innerText = '2.5s';
-    log('Loaded WAV file: ' + file.name + ' (' + (file.size / 1024).toFixed(2) + ' KB)', 'rx');
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    audioContext.decodeAudioData(e.target.result, function(audioBuffer) {
+      rxBuffer = audioBuffer.getChannelData(0);
+      const duration = audioBuffer.duration.toFixed(1);
+      document.getElementById('rx-buffer-meter').style.width = '100%';
+      document.getElementById('rx-buffer-label').innerText = duration + 's';
+      log('Loaded WAV file: ' + file.name + ' (' + (file.size / 1024).toFixed(2) + ' KB) - Duration: ' + duration + 's', 'rx');
+    }, function(err) {
+      log('Error decoding WAV: ' + err.message, 'rx');
+    });
   };
   reader.readAsArrayBuffer(file);
 }
 
 function decodeRx() {
-  const bufferLabel = document.getElementById('rx-buffer-label').innerText;
-  if (bufferLabel === '0.0s') {
-    alert('Load a WAV file or start microphone first');
+  if (!rxBuffer && !rxEncryptedData) {
+    alert('Load a WAV file first');
     return;
   }
 
-  // Simulate decoding
-  const decodedText = 'Decoded message: Hello, HoloRadio!';
-  const decodedBinary = textToBinary(decodedText);
+  // Demodulate audio buffer (simple FSK demodulation)
+  let decodedBinary = '';
+  
+  if (rxBuffer) {
+    const sampleRate = 44100; // Assume standard sample rate
+    const baud = parseInt(document.getElementById('tx-baud').value) || 300;
+    const frequency = parseInt(document.getElementById('tx-freq').value) || 1500;
+    const samplesPerSymbol = Math.floor(sampleRate / baud);
+    
+    const freq0 = frequency - 100;
+    const freq1 = frequency + 100;
 
-  document.getElementById('rx-text').innerText = decodedText;
-  document.getElementById('rx-binary').innerText = decodedBinary;
+    // Simple demodulation: detect which frequency is dominant
+    for (let i = 0; i < rxBuffer.length; i += samplesPerSymbol) {
+      let energy0 = 0, energy1 = 0;
+      
+      for (let s = 0; s < samplesPerSymbol && i + s < rxBuffer.length; s++) {
+        const t = (i + s) / sampleRate;
+        const sample = rxBuffer[i + s];
+        
+        // Correlate with both frequencies
+        energy0 += Math.abs(sample * Math.sin(2 * Math.PI * freq0 * t));
+        energy1 += Math.abs(sample * Math.sin(2 * Math.PI * freq1 * t));
+      }
+      
+      decodedBinary += (energy1 > energy0) ? '1' : '0';
+    }
+  }
+
+  // Convert binary to text
+  let decodedText = '';
+  const cleanBinary = decodedBinary.replace(/\s/g, '');
+  for (let i = 0; i < cleanBinary.length; i += 8) {
+    const byte = cleanBinary.substr(i, 8);
+    if (byte.length === 8) {
+      decodedText += String.fromCharCode(parseInt(byte, 2));
+    }
+  }
+
+  document.getElementById('rx-text').innerText = decodedText || 'Unable to decode signal';
+  document.getElementById('rx-binary').innerText = decodedBinary.substr(0, 200) + (decodedBinary.length > 200 ? '...' : '');
 
   updateStatusDots(true);
-  log('Decoding complete', 'rx');
+  log('Decoding complete - Decoded ' + decodedBinary.length + ' bits', 'rx');
 }
 
 function updateStatusDots(success) {
@@ -371,21 +452,21 @@ function updateStatusDots(success) {
 }
 
 function downloadRxWAV() {
-  const bufferLabel = document.getElementById('rx-buffer-label').innerText;
-  if (bufferLabel === '0.0s') {
+  if (!rxBuffer) {
     alert('No audio data to download');
     return;
   }
 
-  // Create a dummy audio buffer and convert to WAV
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const sampleRate = 44100;
-  const audioBuffer = audioContext.createAudioBuffer(1, sampleRate * 2, sampleRate);
-  const data = audioBuffer.getChannelData(0);
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
 
-  // Fill with noise
-  for (let i = 0; i < data.length; i++) {
-    data[i] = (Math.random() - 0.5) * 0.3;
+  // Create audio buffer from received data
+  const audioBuffer = audioContext.createAudioBuffer(1, rxBuffer.length, 44100);
+  const data = audioBuffer.getChannelData(0);
+  
+  for (let i = 0; i < rxBuffer.length; i++) {
+    data[i] = rxBuffer[i];
   }
 
   const wav = audioBufferToWav(audioBuffer);
@@ -395,6 +476,7 @@ function downloadRxWAV() {
   a.href = url;
   a.download = 'received_' + Date.now() + '.wav';
   a.click();
+  URL.revokeObjectURL(url);
   log('Downloaded received audio', 'rx');
 }
 
@@ -432,6 +514,7 @@ function saveRxText() {
   a.href = url;
   a.download = 'decoded_' + Date.now() + '.txt';
   a.click();
+  URL.revokeObjectURL(url);
   log('Saved decoded text', 'rx');
 }
 
@@ -449,15 +532,46 @@ function attemptDecrypt() {
     alert('Enter a passphrase');
     return;
   }
-  log('Attempting decryption with passphrase...', 'rx');
-  document.getElementById('rx-decrypt-status').innerText = 'Decryption successful ✓';
+
+  if (!rxEncryptedData) {
+    alert('Load an encrypted file first');
+    return;
+  }
+
+  // Attempt decryption
+  const decrypted = simpleDecrypt(rxEncryptedData, passphrase);
+  
+  // Try to convert to text
+  let decodedText = '';
+  for (let i = 0; i < decrypted.length; i++) {
+    const code = decrypted.charCodeAt(i);
+    if (code >= 32 && code <= 126) {
+      decodedText += decrypted[i];
+    }
+  }
+
+  if (decodedText.length > 0) {
+    document.getElementById('rx-text').innerText = decodedText;
+    document.getElementById('rx-decrypt-status').innerText = 'Decryption successful ✓';
+    log('Successfully decrypted data: ' + decodedText.substr(0, 50) + '...', 'rx');
+  } else {
+    document.getElementById('rx-decrypt-status').innerText = 'Decryption failed ✗';
+    log('Decryption failed - passphrase incorrect or data corrupted', 'rx');
+  }
 }
 
 function handleEncFile(event) {
   const file = event.target.files[0];
   if (!file) return;
-  document.getElementById('rx-enc-info').innerText = 'Loaded: ' + file.name;
-  log('Loaded encrypted file: ' + file.name, 'rx');
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    // Store encrypted data as string
+    rxEncryptedData = String.fromCharCode.apply(null, new Uint8Array(e.target.result));
+    document.getElementById('rx-enc-info').innerText = 'Loaded: ' + file.name + ' (' + file.size + ' bytes)';
+    log('Loaded encrypted file: ' + file.name + ' (' + file.size + ' bytes)', 'rx');
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function stopRx() {
